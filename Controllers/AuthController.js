@@ -24,23 +24,47 @@ exports.userRegister = async (req, res) => {
 };
 
 // Login User
+
 exports.userLogin = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const validUser = await users.findOne({ email });
-    if (!validUser) {
-      return res.status(404).send("User Not Found");
-    }
+    const validateUser = await users.findOne({ email: email });
 
-    const isMatch = await bcrypt.compare(password, validUser.password);
-    if (!isMatch) {
-      return res.status(401).send("Incorrect Password");
-    }
+    if (validateUser) {
+      const isMatch = await bcrypt.compare(password, validateUser.password);
 
-    return res.status(200).send(validUser);
+      if (!isMatch) {
+        res.status(422).json({ message: "Invalid Details" });
+      } else {
+        const token = await validateUser.generateAuthToken();
+        res.cookie("userCookie", token, {
+          expires: new Date(Date.now() + 300000),
+          httpOnly: true,
+        });
+        const result = { validateUser, token };
+        res.status(200).json({ result, message: "Login Successful!" });
+      }
+    }
   } catch (error) {
-    console.error("Login Error:", error);
-    res.status(500).send("Login Failed");
+    return res.status(500).json({ message: "Login Failed!" });
+  }
+};
+
+//Logout User
+
+exports.userLogout = async (req, res) => {
+  try {
+    req.rootUser.tokens = req.rootUser.tokens.filter(
+      (item) => item.token !== req.token
+    );
+    await req.rootUser.save();
+
+    res.clearCookie("userCookie", { path: "/login" });
+
+    return res.status(200).json({ message: "Logout Successful!" });
+  } catch (error) {
+    console.error("User Logout Error:", error);
+    return res.status(500).json({ message: "User Logout Failed!" });
   }
 };
