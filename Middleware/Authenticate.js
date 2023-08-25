@@ -5,7 +5,9 @@ const secretKey = process.env.SECRETKEY;
 const authenticate = async (req, res, next) => {
   try {
     const token = req.headers.authorization;
+    console.log("Token:", token);
     const verifyToken = jwt.verify(token, secretKey);
+    console.log("Decoded Token:", verifyToken);
     const rootUser = await users.findOne({ _id: verifyToken._id });
 
     if (!rootUser) {
